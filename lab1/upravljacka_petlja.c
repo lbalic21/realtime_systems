@@ -18,7 +18,7 @@ struct opisUlaza
     clock_t trenutakZadnjegOdgovora;
     int brojPromjenaStanja;
     int brojPrekasnihOdgovora;
-    int sumaKasnjenjaOdgovora;
+    u_int64_t sumaKasnjenjaOdgovora;
     int maxVrijemeOdgovora;
     int K;
 };
@@ -65,7 +65,7 @@ void *upravljac(struct opisUlaza *u)
         {
             int stanje = (u + i)->stanje;
             if (stanje != zadnjeStanje[i])                  //ako je došlo do promjene stanja ulazne dretve, obradi ulaz, postavi odgovor(identičan trenutnom stanju)                                  
-            {                                               //te upiši vrijeme postavljanja odgovora, clock() vraća vrijeme koje je prošlo od početka programa (u ms)
+            {                                               //te upiši vrijeme postavljanja odgovora
                 zadnjeStanje[i] = stanje;
                 printf("Upravljac -> obrada ulaza %d    (%ld)\n", i + 1, clock());
                 simulirajTrajanjeObrade();
@@ -105,14 +105,14 @@ void *ulaz(struct opisUlaza *u)
                 break;
         }
         int trajanje = (u->trenutakZadnjegOdgovora - u->trenutakZadnjePromjeneStanja);
-        if(trajanje > u->perioda * 1000)
+        if((trajanje * 1000 /CLOCKS_PER_SEC) > u->perioda * 1000)
             u->brojPrekasnihOdgovora++;                     //ako je upravljaču bilo potrebno više od periode promjene stanja, odgovor je klasificiran kao zakašnjen
         u->sumaKasnjenjaOdgovora += trajanje;               //potrebno za izračun prosjeka vremena odgovora
         if(trajanje > u->maxVrijemeOdgovora)                
             u->maxVrijemeOdgovora = trajanje;
         
         int dodatnaOdgoda = (random() % u->K) * u->perioda;     //ulaz ne mora promijeniti stanje na svaki period, uvodimo odgodu (svaki put drugačija)
-        while(clock() < (u->trenutakZadnjePromjeneStanja + u->perioda + dodatnaOdgoda))
+        while(clock() < (u->trenutakZadnjePromjeneStanja + (u->perioda + dodatnaOdgoda)*CLOCKS_PER_SEC))
             if(!simulationRunning)
                 break;
     }
@@ -132,9 +132,9 @@ void *ulaz(struct opisUlaza *u)
     /*  Ispis statistike pojedine dretve    */
     printf("Statistika ulaza %d:\n", u->identifikator);
     printf("\t-broj promjena stanja: %d\n", u->brojPromjenaStanja);
-    printf("\t-suma vremena odgovora: %d ms\n", u->sumaKasnjenjaOdgovora);
-    printf("\t-prosjecno vrijeme odgovora: %d ms\n", u->sumaKasnjenjaOdgovora/u->brojPromjenaStanja);
-    printf("\t-maksimalno vrijeme odgovora: %d ms\n", u->maxVrijemeOdgovora);
+    printf("\t-suma vremena odgovora: %ld ms\n", u->sumaKasnjenjaOdgovora*1000/CLOCKS_PER_SEC);
+    printf("\t-prosjecno vrijeme odgovora: %ld ms\n", (u->sumaKasnjenjaOdgovora/u->brojPromjenaStanja)*1000/CLOCKS_PER_SEC);
+    printf("\t-maksimalno vrijeme odgovora: %ld ms\n", u->maxVrijemeOdgovora*1000/CLOCKS_PER_SEC);
     printf("\t-broj problema: %d\n", u->brojPrekasnihOdgovora);
     printf("\t-udio problema: %f\n", (double)(u->brojPrekasnihOdgovora * 10000/u->brojPromjenaStanja)/10000);
 }
@@ -192,8 +192,8 @@ int main(int argc, char *argv[])
         {
             /*  Kreiranje dretvi koje simuliraju pojedine ulaze sustava    */
             ulazi[i - 1].identifikator = i;
-            ulazi[i - 1].K = 5;
-            ulazi[i - 1].perioda = 5;
+            ulazi[i - 1].K = 1;
+            ulazi[i - 1].perioda = 2;
             ulazi[i - 1].prvaPojava = 3;
             if (pthread_create(&thr_id[i], NULL, (void *)ulaz, &ulazi[i - 1]) != 0)
             {
@@ -221,9 +221,9 @@ int main(int argc, char *argv[])
 
     printf("Statistika simulacije:\n");
     printf("\t-broj promjena stanja: %d\n", promjeneStanja);
-    printf("\t-suma vremena odgovora: %d ms\n", sumaVremena);
-    printf("\t-prosjecno vrijeme odgovora: %d ms\n", sumaVremena/promjeneStanja);
-    printf("\t-maksimalno vrijeme odgovora: %d ms\n", maxVrijeme);
+    printf("\t-suma vremena odgovora: %ld ms\n", sumaVremena*1000/CLOCKS_PER_SEC);
+    printf("\t-prosjecno vrijeme odgovora: %ld ms\n", (sumaVremena/promjeneStanja)*1000/CLOCKS_PER_SEC);
+    printf("\t-maksimalno vrijeme odgovora: %ld ms\n", maxVrijeme*1000/CLOCKS_PER_SEC);
     printf("\t-broj problema: %d\n", brojProblema);
     printf("\t-udio problema: %f\n", (double)(brojProblema * 10000/promjeneStanja)/10000);
     
