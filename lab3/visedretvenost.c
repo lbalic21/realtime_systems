@@ -50,6 +50,19 @@ void simulirajMS(int ms)
     }
 }
 
+void simulirajObradu(int perioda)
+{
+    int num = rand() % 100 + 1;
+    if (num <= 50)
+        simulirajMS(0.1*perioda);
+    else if (num > 50 && num <= 80)
+        simulirajMS(0.2*perioda);
+    else if (num > 80 && num < 95)
+        simulirajMS(0.4*perioda);
+    else
+        simulirajMS(0.7*perioda);
+}
+
 /*  Struktura podataka koja u sebi sadrži sve potrebne opisnike za upravljanje pojedinim ulazom */
 struct opisUlaza
 {
@@ -77,8 +90,14 @@ static int BROJ_ULAZA = 0;
 void *upravljac(struct opisUlaza *u)
 {
     printf("Pokrenut upravljač %d!\n", u->identifikator);
-    int zadnjeStanje = 0;   //polje kojim upravljačka dretva pamti prošla stanja ulaza
-                 
+    struct timespec t, t2;
+    t.tv_sec = u->prvaPojava;
+    t.tv_nsec = 20000000;
+    nanosleep(&t, &t2);
+    clock_t tx = clock();
+    t.tv_sec = 0;
+    t.tv_nsec = 10000000;
+    int zadnjeStanje = 0;           
     while (simulationRunning)
     {
         int stanje = u->stanje;
@@ -87,19 +106,15 @@ void *upravljac(struct opisUlaza *u)
             zadnjeStanje = stanje;
             printf("Upravljac -> obrada ulaza %d    (%ld)\n", u->identifikator, clock());
             int perioda = u->perioda * 1000;
-            int num = rand() % 100 + 1;
-            if (num <= 50)
-                simulirajMS(0.1*perioda);
-            else if (num > 50 && num <= 80)
-                simulirajMS(0.2*perioda);
-            else if (num > 80 && num < 95)
-                simulirajMS(0.4*perioda);
-            else
-                simulirajMS(0.7*perioda);
+            simulirajObradu(perioda);
             u->zadnjiOdgovor = stanje;
             u->trenutakZadnjegOdgovora = clock();
         }
-        
+        tx += u->perioda*CLOCKS_PER_SEC;
+        while(clock() < tx)
+            sleep(0.1);
+            if(!simulationRunning)                  
+                break;
     }
     printf("Završio upravljač %d!\n", u->identifikator);
     sem_post(&u->sem);
