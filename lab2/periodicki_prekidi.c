@@ -316,12 +316,13 @@ int main(void)
     t.tv_sec = 0;
     t.tv_nsec = 20000000;
     nanosleep(&t,NULL);
-
+    t.tv_nsec=10000000;
     while(simulationRunning)
     {
-        clock_t t = clock();
+        clock_t tx = clock();
         obradi_zadatak(ulazi);
-        while(clock() < t + 0.1*CLOCKS_PER_SEC);
+        while(clock() < tx + 0.1*CLOCKS_PER_SEC)
+            nanosleep(&t,NULL);
     }
 
     for (int i = 0; i < BROJ_ULAZA; i++)        //ovdje main funkcija čeka da završe sve kreirane dretve
